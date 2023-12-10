@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -25,8 +26,10 @@ var (
 			return ctx.SendStatus(http.StatusInternalServerError)
 		},
 	})
-	config     *Config = DefaultConfig
-	instanceID uint16  = 0
+	db         *MongoDB            = &MongoDB{}
+	config     *Config             = DefaultConfig
+	instanceID uint16              = 0
+	validate   *validator.Validate = validator.New()
 )
 
 func init() {
@@ -48,6 +51,12 @@ func init() {
 		panic(err)
 	}
 
+	if err = db.Connect(config.MongoDB); err != nil {
+		panic(err)
+	}
+
+	log.Println("Successfully connected to MongoDB")
+
 	app.Hooks().OnListen(func(ld fiber.ListenData) error {
 		log.Printf("Listening on %s:%d\n", config.Host, config.Port+instanceID)
 
@@ -56,6 +65,8 @@ func init() {
 }
 
 func main() {
+	defer db.Close()
+
 	if err := app.Listen(fmt.Sprintf("%s:%d", config.Host, config.Port+instanceID)); err != nil {
 		panic(err)
 	}
